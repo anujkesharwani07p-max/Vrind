@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "Homestay room or suite at Vrind Homestay with pricing, capacity, and amenities",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 150 },
+        "tagline": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 1500 },
+        "roomType": { "type": "string", "enum": ["deluxe_suite", "cedar_cottage", "attic_room", "valley_villa"] },
+        "pricePerNight": { "type": "number" },
+        "capacityGuests": { "type": "number" },
+        "bedType": { "type": "string", "maxLength": 100 },
+        "sizeSqFt": { "type": "number" },
+        "view": { "type": "string", "maxLength": 150 },
+        "featured": { "type": "boolean" },
+        "isAvailable": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "images": { "type": "array" },
+        "amenities": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "pricePerNight", "capacityGuests", "isAvailable"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Reservation record for a room stay at Vrind Homestay",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "roomName": { "type": "string", "maxLength": 150 },
+        "guestName": { "type": "string", "maxLength": 100 },
+        "guestEmail": { "type": "string", "maxLength": 120 },
+        "guestPhone": { "type": "string", "maxLength": 30 },
+        "checkInDate": { "type": "string", "maxLength": 30 },
+        "checkOutDate": { "type": "string", "maxLength": 30 },
+        "guestsCount": { "type": "number" },
+        "totalNights": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "specialRequests": { "type": "string", "maxLength": 1000 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "guestName", "guestEmail", "guestPhone", "checkInDate", "checkOutDate", "guestsCount", "totalPrice", "status"]
+    },
+    "RoomSchedule": {
+      "title": "RoomSchedule",
+      "description": "Public non-PII schedule intervals for verifying room availability",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "checkInDate": { "type": "string", "maxLength": 30 },
+        "checkOutDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["active", "cancelled"] }
+      },
+      "required": ["roomId", "checkInDate", "checkOutDate", "status"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "Guest contact or general question enquiry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "subject": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["new", "read", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "message", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Guest testimonial and rating for Vrind Homestay",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "authorLocation": { "type": "string", "maxLength": 100 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 1000 },
+        "roomStayed": { "type": "string", "maxLength": 100 },
+        "stayDate": { "type": "string", "maxLength": 50 },
+        "verified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorName", "rating", "comment"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator user profile and permissions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["admin", "superadmin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Catalog of homestay rooms, public read and admin write"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Booking reservation requests made by guests, visible to booking creator and admins"
+    },
+    "/room_schedule/{scheduleId}": {
+      "schema": "RoomSchedule",
+      "description": "Public non-PII schedule intervals for live date availability checking"
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": "Enquiry",
+      "description": "Contact messages submitted by prospective guests"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Guest reviews and ratings displayed on the website"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized staff and managers of Vrind Homestay"
+    }
+  }
+}

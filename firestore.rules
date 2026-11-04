@@ -1,0 +1,186 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Security Helper Functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'anujkesharwani07p@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Room Entity Validation
+    function isValidRoom(data) {
+      return data.keys().hasAll(['id', 'name', 'pricePerNight', 'capacityGuests', 'isAvailable']) &&
+        data.id is string && data.id.size() <= 100 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+        data.pricePerNight is number && data.pricePerNight > 0 && data.pricePerNight <= 1000000 &&
+        data.capacityGuests is number && data.capacityGuests > 0 && data.capacityGuests <= 50 &&
+        data.isAvailable is bool &&
+        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 200)) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+        (!('roomType' in data) || (data.roomType in ['deluxe_suite', 'cedar_cottage', 'attic_room', 'valley_villa'])) &&
+        (!('bedType' in data) || (data.bedType is string && data.bedType.size() <= 100)) &&
+        (!('sizeSqFt' in data) || (data.sizeSqFt is number && data.sizeSqFt >= 50 && data.sizeSqFt <= 10000)) &&
+        (!('view' in data) || (data.view is string && data.view.size() <= 150)) &&
+        (!('featured' in data) || data.featured is bool) &&
+        (!('rating' in data) || (data.rating is number && data.rating >= 1 && data.rating <= 5)) &&
+        (!('images' in data) || (data.images is list && data.images.size() <= 30)) &&
+        (!('amenities' in data) || (data.amenities is list && data.amenities.size() <= 30)) &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    // Booking Entity Validation
+    function isValidBooking(data) {
+      return data.keys().hasAll(['roomId', 'guestName', 'guestEmail', 'guestPhone', 'checkInDate', 'checkOutDate', 'guestsCount', 'totalPrice', 'status']) &&
+        data.roomId is string && data.roomId.size() <= 128 &&
+        data.guestName is string && data.guestName.size() > 1 && data.guestName.size() <= 100 &&
+        data.guestEmail is string && data.guestEmail.size() > 3 && data.guestEmail.size() <= 120 &&
+        data.guestPhone is string && data.guestPhone.size() >= 7 && data.guestPhone.size() <= 30 &&
+        data.checkInDate is string && data.checkInDate.size() <= 30 &&
+        data.checkOutDate is string && data.checkOutDate.size() <= 30 &&
+        data.guestsCount is number && data.guestsCount >= 1 && data.guestsCount <= 30 &&
+        data.totalPrice is number && data.totalPrice >= 0 && data.totalPrice <= 10000000 &&
+        data.status in ['pending', 'confirmed', 'cancelled'] &&
+        (!('specialRequests' in data) || (data.specialRequests is string && data.specialRequests.size() <= 1000)) &&
+        (!('roomName' in data) || (data.roomName is string && data.roomName.size() <= 150)) &&
+        (!('totalNights' in data) || (data.totalNights is number && data.totalNights >= 1)) &&
+        (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 60)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 60));
+    }
+
+    // Enquiry Entity Validation
+    function isValidEnquiry(data) {
+      return data.keys().hasAll(['name', 'email', 'message', 'status']) &&
+        data.name is string && data.name.size() > 1 && data.name.size() <= 100 &&
+        data.email is string && data.email.size() > 3 && data.email.size() <= 120 &&
+        data.message is string && data.message.size() > 2 && data.message.size() <= 2000 &&
+        data.status in ['new', 'read', 'resolved'] &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+        (!('subject' in data) || (data.subject is string && data.subject.size() <= 150));
+    }
+
+    // Review Entity Validation
+    function isValidReview(data) {
+      return data.keys().hasAll(['authorName', 'rating', 'comment']) &&
+        data.authorName is string && data.authorName.size() > 1 && data.authorName.size() <= 100 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() > 5 && data.comment.size() <= 1200 &&
+        (!('authorLocation' in data) || (data.authorLocation is string && data.authorLocation.size() <= 100)) &&
+        (!('roomStayed' in data) || (data.roomStayed is string && data.roomStayed.size() <= 100)) &&
+        (!('stayDate' in data) || (data.stayDate is string && data.stayDate.size() <= 50)) &&
+        (!('verified' in data) || data.verified is bool);
+    }
+
+    // 1. Rooms Collection
+    // Public read for everyone to browse rooms and check availability.
+    // Admin write only.
+    match /rooms/{roomId} {
+      allow get, list: if true;
+      allow create: if isValidId(roomId) && isAdmin() && isValidRoom(incoming());
+      allow update: if isValidId(roomId) && isAdmin() && isValidRoom(incoming());
+      allow delete: if isValidId(roomId) && isAdmin();
+    }
+
+    // 2. Bookings Collection
+    // Guests can create bookings.
+    // Read: Booking owner (by email or userId) or Admin.
+    // List: Admin can list all, or user filtered by userId or email.
+    // Update: Admin can update status/details, or guest can cancel their own booking.
+    match /bookings/{bookingId} {
+      allow get: if isValidId(bookingId) && (
+        isAdmin() ||
+        (isSignedIn() && resource.data.userId == request.auth.uid) ||
+        (isSignedIn() && resource.data.guestEmail == request.auth.token.email)
+      );
+
+      allow list: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.guestEmail == request.auth.token.email
+        )
+      );
+
+      allow create: if isValidId(bookingId) && isValidBooking(incoming()) && (
+        incoming().status == 'pending' || isAdmin()
+      );
+
+      allow update: if isValidId(bookingId) && isValidBooking(incoming()) && (
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          (resource.data.userId == request.auth.uid || resource.data.guestEmail == request.auth.token.email) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'specialRequests']) &&
+          incoming().status == 'cancelled'
+        )
+      );
+
+      allow delete: if isValidId(bookingId) && isAdmin();
+    }
+
+    // 2b. Room Schedule (Non-PII availability intervals)
+    // Public get and list to check whether dates are booked without exposing guest PII
+    match /room_schedule/{scheduleId} {
+      allow get, list: if true;
+      allow create: if isValidId(scheduleId) &&
+        incoming().keys().hasAll(['roomId', 'checkInDate', 'checkOutDate', 'status']) &&
+        incoming().roomId is string && incoming().roomId.size() <= 128 &&
+        incoming().checkInDate is string && incoming().checkInDate.size() <= 30 &&
+        incoming().checkOutDate is string && incoming().checkOutDate.size() <= 30 &&
+        incoming().status in ['active', 'cancelled'] &&
+        (!('id' in incoming()) || (incoming().id is string && incoming().id.size() <= 128));
+      allow update, delete: if isValidId(scheduleId) && isAdmin();
+    }
+
+    // 3. Enquiries Collection
+    // Public create with validation.
+    // Admin read and update.
+    match /enquiries/{enquiryId} {
+      allow create: if isValidId(enquiryId) && isValidEnquiry(incoming());
+      allow get, list: if isAdmin();
+      allow update: if isValidId(enquiryId) && isAdmin() && isValidEnquiry(incoming());
+      allow delete: if isValidId(enquiryId) && isAdmin();
+    }
+
+    // 4. Reviews Collection
+    // Public read.
+    // Any guest can submit review with valid rating & comment.
+    // Admin delete / update.
+    match /reviews/{reviewId} {
+      allow get, list: if true;
+      allow create: if isValidId(reviewId) && isValidReview(incoming());
+      allow update: if isValidId(reviewId) && (isAdmin() || isValidReview(incoming()));
+      allow delete: if isValidId(reviewId) && isAdmin();
+    }
+
+    // 5. Admins Collection
+    // Controlled RBAC table
+    match /admins/{adminId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

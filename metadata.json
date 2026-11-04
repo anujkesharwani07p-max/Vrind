@@ -1,0 +1,6 @@
+{
+  "name": "Vrind Homestay – Himalayan Retreat",
+  "description": "Experience peace in the heart of the Himalayas at Vrind Homestay. Discover cozy rooms, breathtaking mountain views, authentic hospitality, real-time booking, and serene retreat experiences.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
