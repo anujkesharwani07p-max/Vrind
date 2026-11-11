@@ -8,9 +8,27 @@ import {
   CheckCircle2, 
   Sparkles 
 } from 'lucide-react';
-import { HOMESTAY_DETAILS } from '../data/initialData';
+import { HOMESTAY_DETAILS, INITIAL_ABOUT } from '../data/initialData';
+import { AboutContent, HomestayDetails } from '../types';
 
-export const About: React.FC = () => {
+interface AboutProps {
+  content?: AboutContent;
+  homestayDetails?: HomestayDetails;
+}
+
+export const About: React.FC<AboutProps> = ({
+  content = INITIAL_ABOUT,
+  homestayDetails = HOMESTAY_DETAILS
+}) => {
+  const mainImage = content.mainImage || INITIAL_ABOUT.mainImage;
+  const secondaryImage = content.secondaryImage || INITIAL_ABOUT.secondaryImage;
+  const title = content.title || INITIAL_ABOUT.title;
+  const subtitle = content.subtitle || INITIAL_ABOUT.subtitle;
+  const storyP1 = content.storyP1 || INITIAL_ABOUT.storyP1;
+  const storyP2 = content.storyP2 || INITIAL_ABOUT.storyP2;
+  const badgeText = content.badgeText || INITIAL_ABOUT.badgeText;
+  const elevation = content.elevationBadge || homestayDetails.altitude || HOMESTAY_DETAILS.altitude;
+
   return (
     <section id="about" className="py-24 bg-[#08120e] relative overflow-hidden">
       {/* Decorative Subtle Background Glows */}
@@ -26,7 +44,7 @@ export const About: React.FC = () => {
               {/* Primary Image */}
               <div className="relative rounded-3xl overflow-hidden border border-[#234335] shadow-2xl shadow-black/80 aspect-[4/5]">
                 <img
-                  src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1000&q=80"
+                  src={mainImage}
                   alt="Vrind Homestay traditional timber and stone architecture surrounded by apple trees"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                 />
@@ -40,7 +58,7 @@ export const About: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-xs text-[#a89d89] uppercase tracking-wider">Ancient Heritage</p>
-                      <p className="text-sm font-semibold text-[#fcfaf6]">Kathkuni Wood & River-Stone Craft</p>
+                      <p className="text-sm font-semibold text-[#fcfaf6]">{badgeText}</p>
                     </div>
                   </div>
                 </div>
@@ -49,7 +67,7 @@ export const About: React.FC = () => {
               {/* Secondary Overlapping Card */}
               <div className="hidden sm:block absolute -top-6 -right-6 w-48 rounded-2xl overflow-hidden border border-[#d4af37]/40 shadow-2xl shadow-black/80 aspect-square">
                 <img
-                  src="https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=600&q=80"
+                  src={secondaryImage}
                   alt="Fresh organic breakfast served on wooden deck"
                   className="w-full h-full object-cover"
                 />
@@ -61,7 +79,7 @@ export const About: React.FC = () => {
 
               {/* Elevation Stamp */}
               <div className="absolute -bottom-6 -left-6 bg-[#0f241a] border border-[#d4af37]/60 rounded-2xl p-4 shadow-xl backdrop-blur-md">
-                <p className="text-2xl font-bold font-cinzel text-[#d4af37]">{HOMESTAY_DETAILS.altitude}</p>
+                <p className="text-2xl font-bold font-cinzel text-[#d4af37]">{elevation}</p>
                 <p className="text-[11px] text-[#ebe3d5] tracking-wide">Pristine Himalayan Altitude</p>
               </div>
             </div>
@@ -71,23 +89,19 @@ export const About: React.FC = () => {
           <div className="lg:col-span-6 flex flex-col justify-center">
             <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#d4af37] font-semibold mb-3">
               <Mountain className="w-4 h-4 text-[#d4af37]" />
-              <span>About Vrind Homestay</span>
+              <span>{subtitle}</span>
             </div>
 
             <h2 className="font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold text-[#fcfaf6] leading-tight mb-6">
-              A Serene Sanctuary Built with Deodar Wood & Pure Warmth
+              {title}
             </h2>
 
             <p className="text-base text-[#dfd4c0] font-light leading-relaxed mb-6">
-              Vrind Homestay was born from a simple devotion: to create a mindful refuge where travelers 
-              can disconnect from the frenetic pace of modern life and reconnect with the raw majesty of 
-              the Pir Panjal and Dhauladhar mountains.
+              {storyP1}
             </p>
 
             <p className="text-sm text-[#b8ab94] leading-relaxed mb-8">
-              Constructed by master local artisans using traditional <strong className="text-[#f4efe6]">Kathkuni architecture</strong> — 
-              an age-old Himalayan technique of interlocking river stones and aromatic deodar cedar logs without mortar — 
-              our homestay remains naturally warm during winter snowfalls and pleasantly breezy in Himalayan summers.
+              {storyP2}
             </p>
 
             {/* Feature Grid */}

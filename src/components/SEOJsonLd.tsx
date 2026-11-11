@@ -1,15 +1,23 @@
-import React from 'react';
 import { HOMESTAY_DETAILS, INITIAL_ROOMS } from '../data/initialData';
+import { HomestayDetails, Room } from '../types';
 
-export const SEOJsonLd: React.FC = () => {
+interface SEOJsonLdProps {
+  details?: HomestayDetails;
+  rooms?: Room[];
+}
+
+export const SEOJsonLd: React.FC<SEOJsonLdProps> = ({ details = HOMESTAY_DETAILS, rooms = INITIAL_ROOMS }) => {
+  const info = details || HOMESTAY_DETAILS;
+  const roomList = rooms && rooms.length > 0 ? rooms : INITIAL_ROOMS;
+
   const schemaData = {
     '@context': 'https://schema.org',
     '@type': 'BedAndBreakfast',
-    'name': HOMESTAY_DETAILS.name,
+    'name': info.name,
     'description': 'Handcrafted Kathkuni Himalayan homestay at 7,200 ft elevation with panoramic valley views, organic farm dining, and cozy wood-burning suites.',
     'url': window.location.origin,
-    'telephone': HOMESTAY_DETAILS.phone,
-    'email': HOMESTAY_DETAILS.email,
+    'telephone': info.phone,
+    'email': info.email,
     'address': {
       '@type': 'PostalAddress',
       'streetAddress': 'Shanag Road, Burwa',
@@ -20,12 +28,12 @@ export const SEOJsonLd: React.FC = () => {
     },
     'geo': {
       '@type': 'GeoCoordinates',
-      'latitude': HOMESTAY_DETAILS.coordinates.lat,
-      'longitude': HOMESTAY_DETAILS.coordinates.lng
+      'latitude': info.coordinates?.lat || 32.2885,
+      'longitude': info.coordinates?.lng || 77.1682
     },
     'priceRange': '₹4,200 - ₹8,500',
-    'checkinTime': HOMESTAY_DETAILS.checkInTime,
-    'checkoutTime': HOMESTAY_DETAILS.checkOutTime,
+    'checkinTime': info.checkInTime,
+    'checkoutTime': info.checkOutTime,
     'petsAllowed': 'True (upon prior inquiry)',
     'amenityFeature': [
       { '@type': 'LocationFeatureSpecification', 'name': 'High-Speed Wi-Fi', 'value': true },
@@ -37,7 +45,7 @@ export const SEOJsonLd: React.FC = () => {
     'hasOfferCatalog': {
       '@type': 'OfferCatalog',
       'name': 'Himalayan Homestay Suites',
-      'itemListElement': INITIAL_ROOMS.map((room) => ({
+      'itemListElement': roomList.map((room) => ({
         '@type': 'Offer',
         'itemOffered': {
           '@type': 'HotelRoom',

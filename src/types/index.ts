@@ -70,3 +70,56 @@ export interface Experience {
   tags: string[];
   highlight: string;
 }
+
+export interface GalleryItem {
+  id: string;
+  category: string;
+  title: string;
+  subtitle: string;
+  image: string;
+}
+
+export interface HomestayDetails {
+  name: string;
+  tagline: string;
+  address: string;
+  coordinates: { lat: number; lng: number };
+  phone: string;
+  phoneFormatted: string;
+  whatsapp: string;
+  email: string;
+  checkInTime: string;
+  checkOutTime: string;
+  altitude: string;
+  nearestAirport: string;
+  nearestRailway: string;
+  drivingDistance: string;
+}
+
+export interface HeroContent {
+  badge: string;
+  headline: string;
+  subtitle: string;
+  heroImage: string;
+}
+
+export interface AboutContent {
+  title: string;
+  subtitle: string;
+  storyP1: string;
+  storyP2: string;
+  mainImage: string;
+  secondaryImage: string;
+  badgeText: string;
+  elevationBadge: string;
+}
+
+export interface SiteContent {
+  homestayDetails: HomestayDetails;
+  hero: HeroContent;
+  about: AboutContent;
+  experiences: Experience[];
+  gallery: GalleryItem[];
+  updatedAt?: string;
+}
+

@@ -45,9 +45,10 @@ export async function processImageFile(
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // If file is PNG with transparent background, use PNG or JPEG with background
-        const outputFormat = file.type === 'image/png' ? 'image/jpeg' : 'image/jpeg';
-        const dataUrl = canvas.toDataURL(outputFormat, quality);
+        // Preserve PNG transparency if input was PNG
+        const isPng = file.type === 'image/png';
+        const outputFormat = isPng ? 'image/png' : 'image/jpeg';
+        const dataUrl = canvas.toDataURL(outputFormat, isPng ? undefined : quality);
         resolve(dataUrl);
       };
 

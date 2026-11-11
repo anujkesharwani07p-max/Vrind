@@ -10,8 +10,20 @@ import {
   Check
 } from 'lucide-react';
 import { EXPERIENCES, HOMESTAY_DETAILS } from '../data/initialData';
+import { Experience, HomestayDetails } from '../types';
 
-export const Experiences: React.FC = () => {
+interface ExperiencesProps {
+  experiences?: Experience[];
+  homestayDetails?: HomestayDetails;
+}
+
+export const Experiences: React.FC<ExperiencesProps> = ({
+  experiences = EXPERIENCES,
+  homestayDetails = HOMESTAY_DETAILS
+}) => {
+  const whatsappNumber = homestayDetails.whatsapp || HOMESTAY_DETAILS.whatsapp;
+  const list = experiences && experiences.length > 0 ? experiences : EXPERIENCES;
+
   return (
     <section id="experiences" className="py-24 bg-[#091510] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -33,7 +45,7 @@ export const Experiences: React.FC = () => {
 
         {/* Experience Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
-          {EXPERIENCES.map((exp) => (
+          {list.map((exp) => (
             <div
               key={exp.id}
               className="group bg-[#0c1a14] border border-[#1e3b2e] hover:border-[#c59b3f]/50 rounded-3xl overflow-hidden shadow-xl shadow-black/40 transition-all duration-300 flex flex-col justify-between"
@@ -96,7 +108,7 @@ export const Experiences: React.FC = () => {
               <div className="px-6 pb-6 pt-2 border-t border-[#18392c] flex items-center justify-between">
                 <span className="text-xs text-[#a89d89]">Available for In-House Guests</span>
                 <a
-                  href={`https://wa.me/${HOMESTAY_DETAILS.whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20would%20love%20to%20plan%20the%20${encodeURIComponent(exp.title)}%20experience%20during%20my%20stay.`}
+                  href={`https://wa.me/${whatsappNumber}?text=Hi%20Vrind%20Homestay%2C%20I%20would%20love%20to%20plan%20the%20${encodeURIComponent(exp.title)}%20experience%20during%20my%20stay.`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#11291f] hover:bg-[#183a2d] border border-emerald-500/30 text-emerald-300 hover:text-emerald-200 text-xs font-medium transition-colors"

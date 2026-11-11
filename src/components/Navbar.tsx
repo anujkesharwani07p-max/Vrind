@@ -12,16 +12,22 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { HOMESTAY_DETAILS } from '../data/initialData';
+import { HomestayDetails } from '../types';
 
 interface NavbarProps {
   onOpenBooking: (roomId?: string) => void;
   onOpenAdmin: () => void;
+  details?: HomestayDetails;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onOpenAdmin }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onOpenAdmin, details = HOMESTAY_DETAILS }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAdmin, logout } = useAuth();
+
+  const phone = details?.phoneFormatted || details?.phone || HOMESTAY_DETAILS.phone;
+  const rawPhone = details?.phone || HOMESTAY_DETAILS.phone;
+  const whatsapp = details?.whatsapp || HOMESTAY_DETAILS.whatsapp;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,7 +40,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onOpenAdmin }) =>
   const navLinks = [
     { name: 'About', href: '#about' },
     { name: 'Rooms & Suites', href: '#rooms' },
-    { name: 'Experiences', href: '#experiences' },
     { name: 'Gallery', href: '#gallery' },
     { name: 'Reviews', href: '#testimonials' },
     { name: 'Contact', href: '#contact' },
@@ -86,12 +91,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onOpenAdmin }) =>
             {/* Desktop Actions */}
             <div className="hidden lg:flex items-center gap-4">
               <a
-                href={`tel:${HOMESTAY_DETAILS.phone}`}
+                href={`tel:${rawPhone}`}
                 className="flex items-center gap-1.5 text-xs text-[#dfd4c0] hover:text-[#d4af37] transition-colors px-2 py-1"
                 title="Call Host Directly"
               >
                 <Phone className="w-3.5 h-3.5 text-[#d4af37]" />
-                <span>{HOMESTAY_DETAILS.phone}</span>
+                <span>{phone}</span>
               </a>
 
               <button
@@ -162,7 +167,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenBooking, onOpenAdmin }) =>
                 </button>
                 <div className="flex items-center justify-between px-2 pt-1">
                   <a
-                    href={`https://wa.me/${HOMESTAY_DETAILS.whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20would%20like%20to%20enquire%20about%20staying%20with%20you.`}
+                    href={`https://wa.me/${whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20would%20like%20to%20enquire%20about%20staying%20with%20you.`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-2 text-xs text-emerald-400"

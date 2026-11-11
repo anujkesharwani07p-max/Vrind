@@ -13,13 +13,16 @@ import {
   ArrowUp
 } from 'lucide-react';
 import { HOMESTAY_DETAILS } from '../data/initialData';
+import { HomestayDetails } from '../types';
 
 interface FooterProps {
   onOpenBooking: () => void;
   onOpenAdmin: () => void;
+  details?: HomestayDetails;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenBooking, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenBooking, onOpenAdmin, details = HOMESTAY_DETAILS }) => {
+  const info = details || HOMESTAY_DETAILS;
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -74,7 +77,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenBooking, onOpenAdmin }) =>
                 <Facebook className="w-4 h-4" />
               </a>
               <a
-                href={`https://wa.me/${HOMESTAY_DETAILS.whatsapp}`}
+                href={`https://wa.me/${info.whatsapp}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-8 h-8 rounded-full bg-[#0f241a] border border-emerald-500/40 flex items-center justify-center text-emerald-400 hover:bg-emerald-950 transition-colors"
@@ -96,9 +99,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenBooking, onOpenAdmin }) =>
               </li>
               <li>
                 <a href="#rooms" className="hover:text-[#d4af37] transition-colors">Suites & Cottages</a>
-              </li>
-              <li>
-                <a href="#experiences" className="hover:text-[#d4af37] transition-colors">Forest Treks & Trails</a>
               </li>
               <li>
                 <a href="#gallery" className="hover:text-[#d4af37] transition-colors">Retreat Photo Gallery</a>
@@ -150,18 +150,18 @@ export const Footer: React.FC<FooterProps> = ({ onOpenBooking, onOpenAdmin }) =>
             <div className="space-y-2.5 text-[#b8ab94]">
               <p className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
-                <span>{HOMESTAY_DETAILS.address}</span>
+                <span>{info.address}</span>
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#d4af37] shrink-0" />
-                <a href={`tel:${HOMESTAY_DETAILS.phone}`} className="hover:text-white transition-colors">
-                  {HOMESTAY_DETAILS.phone}
+                <a href={`tel:${info.phone}`} className="hover:text-white transition-colors">
+                  {info.phoneFormatted || info.phone}
                 </a>
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#d4af37] shrink-0" />
-                <a href={`mailto:${HOMESTAY_DETAILS.email}`} className="hover:text-white transition-colors">
-                  {HOMESTAY_DETAILS.email}
+                <a href={`mailto:${info.email}`} className="hover:text-white transition-colors">
+                  {info.email}
                 </a>
               </p>
             </div>

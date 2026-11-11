@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import { MessageSquare, X } from 'lucide-react';
 import { HOMESTAY_DETAILS } from '../data/initialData';
 
-export const WhatsAppButton: React.FC = () => {
+interface WhatsAppButtonProps {
+  whatsapp?: string;
+}
+
+export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({ whatsapp = HOMESTAY_DETAILS.whatsapp }) => {
   const [showTooltip, setShowTooltip] = useState(true);
+  const targetNumber = whatsapp || HOMESTAY_DETAILS.whatsapp;
 
   return (
     <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3">
@@ -24,7 +29,7 @@ export const WhatsAppButton: React.FC = () => {
 
       {/* Floating Action Button */}
       <a
-        href={`https://wa.me/${HOMESTAY_DETAILS.whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20am%20planning%20a%20stay%20and%20would%20like%20to%20enquire%20about%20room%20availability.`}
+        href={`https://wa.me/${targetNumber}?text=Hi%20Vrind%20Homestay%2C%20I%20am%20planning%20a%20stay%20and%20would%20like%20to%20enquire%20about%20room%20availability.`}
         target="_blank"
         rel="noreferrer"
         className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-2xl shadow-emerald-600/40 hover:scale-110 active:scale-95 transition-all duration-300 ring-4 ring-emerald-500/20 group"

@@ -182,5 +182,13 @@ service cloud.firestore {
       allow get, list: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
+
+    // 6. Site Settings Collection
+    // Public read so all visitors see live texts and photos
+    // Admin write only for authorized management
+    match /site_settings/{docId} {
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(docId) && isAdmin();
+    }
   }
 }

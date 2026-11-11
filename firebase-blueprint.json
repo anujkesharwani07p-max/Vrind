@@ -105,6 +105,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global website configuration, homestay details, hero, about, experiences, and gallery text and photos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 100 },
+        "homestayDetails": { "type": "object" },
+        "hero": { "type": "object" },
+        "about": { "type": "object" },
+        "experiences": { "type": "array" },
+        "gallery": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id"]
     }
   },
   "firestore": {
@@ -131,6 +146,10 @@
     "/admins/{adminId}": {
       "schema": "Admin",
       "description": "Authorized staff and managers of Vrind Homestay"
+    },
+    "/site_settings/{docId}": {
+      "schema": "SiteSettings",
+      "description": "Customizable website texts and photos editable from admin panel, public read and admin write"
     }
   }
 }

@@ -9,13 +9,22 @@ import {
   MessageSquare,
   Search
 } from 'lucide-react';
-import { HOMESTAY_DETAILS } from '../data/initialData';
+import { HOMESTAY_DETAILS, INITIAL_HERO } from '../data/initialData';
+import { HeroContent, HomestayDetails } from '../types';
 
 interface HeroProps {
   onOpenBooking: (roomId?: string, defaultDates?: { checkIn: string; checkOut: string; guests: number }) => void;
+  content?: HeroContent;
+  homestayDetails?: HomestayDetails;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onOpenBooking }) => {
+export const Hero: React.FC<HeroProps> = ({ onOpenBooking, content = INITIAL_HERO, homestayDetails = HOMESTAY_DETAILS }) => {
+  const heroBadge = content.badge || INITIAL_HERO.badge;
+  const heroHeadline = content.headline || INITIAL_HERO.headline;
+  const heroSubtitle = content.subtitle || INITIAL_HERO.subtitle;
+  const heroImage = content.heroImage || INITIAL_HERO.heroImage;
+  const whatsappNumber = homestayDetails.whatsapp || HOMESTAY_DETAILS.whatsapp;
+
   // Default dates: tomorrow to +3 days
   const today = new Date();
   const tomorrow = new Date(today);
@@ -37,7 +46,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenBooking }) => {
       {/* Background Mountain Visual with Dramatic Overlays */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=85"
+          src={heroImage}
           alt="Majestic Himalayan peaks and pine valleys at sunrise"
           className="w-full h-full object-cover object-center scale-105 animate-pulse duration-[10000ms]"
         />
@@ -50,22 +59,17 @@ export const Hero: React.FC<HeroProps> = ({ onOpenBooking }) => {
         {/* Top Eyebrow Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#11291f]/80 border border-[#d4af37]/40 text-[#f4efe6] text-xs uppercase tracking-[0.25em] font-medium mb-6 backdrop-blur-md shadow-lg shadow-black/40">
           <Sparkles className="w-3.5 h-3.5 text-[#d4af37]" />
-          <span>7,200 Ft Elevation • Manali Heritage Valley</span>
+          <span>{heroBadge}</span>
         </div>
 
         {/* Main Headline */}
         <h1 className="font-cinzel text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#fcfaf6] max-w-4xl leading-[1.15] mb-6 drop-shadow-md">
-          Experience Peace in the Heart of the{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] via-[#f7e096] to-[#c59b3f]">
-            Himalayas
-          </span>
+          {heroHeadline}
         </h1>
 
         {/* Descriptive Tagline */}
         <p className="max-w-2xl text-base sm:text-lg text-[#ebe3d5] font-light leading-relaxed mb-10 drop-shadow">
-          Tucked away in sacred deodar pine forests and fragrant apple orchards, 
-          Vrind Homestay offers handcrafted Kathkuni cedar suites, farm-fresh 
-          organic dining, and the undisturbed stillness of high mountain peaks.
+          {heroSubtitle}
         </p>
 
         {/* Call to Actions */}
@@ -87,7 +91,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenBooking }) => {
           </a>
 
           <a
-            href={`https://wa.me/${HOMESTAY_DETAILS.whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20would%20like%20to%20enquire%20about%20staying%20with%20you.`}
+            href={`https://wa.me/${whatsappNumber}?text=Hi%20Vrind%20Homestay%2C%20I%20would%20like%20to%20enquire%20about%20staying%20with%20you.`}
             target="_blank"
             rel="noreferrer"
             className="px-6 py-3.5 rounded-full bg-[#152e22]/70 hover:bg-[#1a382a] border border-emerald-500/30 text-emerald-300 font-medium text-sm backdrop-blur-md transition-all flex items-center gap-2"

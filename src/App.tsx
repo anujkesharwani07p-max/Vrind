@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { testFirestoreConnection } from './lib/firebase';
-import { getRooms, getReviews } from './services/dbService';
-import { Room, Review } from './types';
-import { INITIAL_ROOMS, INITIAL_REVIEWS } from './data/initialData';
+import { getRooms, getReviews, getSiteContentFromDb, getCachedSiteContent } from './services/dbService';
+import { Room, Review, SiteContent } from './types';
+import { INITIAL_ROOMS, INITIAL_REVIEWS, INITIAL_SITE_CONTENT } from './data/initialData';
 
 // Components
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { About } from './components/About';
 import { Rooms } from './components/Rooms';
-import { Experiences } from './components/Experiences';
 import { Gallery } from './components/Gallery';
 import { Testimonials } from './components/Testimonials';
 import { Contact } from './components/Contact';
@@ -24,6 +23,7 @@ import { SEOJsonLd } from './components/SEOJsonLd';
 export function VrindHomestayApp() {
   const [rooms, setRooms] = useState<Room[]>(INITIAL_ROOMS);
   const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
+  const [siteContent, setSiteContent] = useState<SiteContent>(getCachedSiteContent());
   const [loading, setLoading] = useState<boolean>(true);
 
   // Modal States
@@ -42,10 +42,11 @@ export function VrindHomestayApp() {
         // Test connection according to Firebase integration guidelines
         await testFirestoreConnection();
         
-        // Fetch rooms and reviews from Firestore
-        const [roomsFromDb, reviewsFromDb] = await Promise.all([
+        // Fetch rooms, reviews, and dynamic site content from Firestore
+        const [roomsFromDb, reviewsFromDb, contentFromDb] = await Promise.all([
           getRooms(),
-          getReviews()
+          getReviews(),
+          getSiteContentFromDb()
         ]);
 
         if (roomsFromDb && roomsFromDb.length > 0) {
@@ -53,6 +54,9 @@ export function VrindHomestayApp() {
         }
         if (reviewsFromDb && reviewsFromDb.length > 0) {
           setReviews(reviewsFromDb);
+        }
+        if (contentFromDb) {
+          setSiteContent(contentFromDb);
         }
       } catch (err) {
         console.warn('Initial data load warning:', err);
@@ -82,17 +86,29 @@ export function VrindHomestayApp() {
     }
   };
 
+  const handleRefreshSiteContent = async () => {
+    try {
+      const refreshed = await getSiteContentFromDb();
+      setSiteContent(refreshed);
+    } catch (err) {
+      console.warn('Could not refresh site content:', err);
+    }
+  };
+
   const handleReviewAdded = (newReview: Review) => {
     setReviews((prev) => [newReview, ...prev]);
   };
 
+  const homestayDetails = siteContent.homestayDetails || INITIAL_SITE_CONTENT.homestayDetails;
+
   return (
     <div className="min-h-screen bg-[#08120e] text-[#f4efe6] font-sans antialiased selection:bg-[#c59b3f] selection:text-[#08120e]">
       {/* Schema.org SEO Structured Data */}
-      <SEOJsonLd />
+      <SEOJsonLd details={homestayDetails} rooms={rooms} />
 
       {/* Navigation Header */}
       <Navbar
+        details={homestayDetails}
         onOpenBooking={() => handleOpenBooking()}
         onOpenAdmin={() => setIsAdminOpen(true)}
       />
@@ -100,10 +116,17 @@ export function VrindHomestayApp() {
       {/* Main Content Sections */}
       <main>
         {/* 1. Hero Section */}
-        <Hero onOpenBooking={handleOpenBooking} />
+        <Hero 
+          content={siteContent.hero}
+          homestayDetails={homestayDetails}
+          onOpenBooking={handleOpenBooking} 
+        />
 
         {/* 2. About Us */}
-        <About />
+        <About 
+          content={siteContent.about}
+          homestayDetails={homestayDetails}
+        />
 
         {/* 3. Rooms & Accommodation */}
         <Rooms
@@ -112,30 +135,28 @@ export function VrindHomestayApp() {
           onBookRoom={(roomId) => handleOpenBooking(roomId)}
         />
 
-        {/* 4. Curated Experiences */}
-        <Experiences />
+        {/* 4. Visual Gallery */}
+        <Gallery items={siteContent.gallery} />
 
-        {/* 5. Visual Gallery */}
-        <Gallery />
-
-        {/* 6. Guest Testimonials */}
+        {/* 5. Guest Testimonials */}
         <Testimonials
           reviews={reviews}
           onReviewAdded={handleReviewAdded}
         />
 
-        {/* 7. Contact Us & Travel Directions */}
-        <Contact />
+        {/* 6. Contact Us & Travel Directions */}
+        <Contact details={homestayDetails} />
       </main>
 
-      {/* 8. Footer */}
+      {/* 7. Footer */}
       <Footer
+        details={homestayDetails}
         onOpenBooking={() => handleOpenBooking()}
         onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Floating Action WhatsApp */}
-      <WhatsAppButton />
+      <WhatsAppButton whatsapp={homestayDetails.whatsapp} />
 
       {/* Modals & Dialogs */}
       <RoomModal
@@ -156,6 +177,7 @@ export function VrindHomestayApp() {
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
         onRoomsUpdated={handleRefreshRooms}
+        onSiteContentUpdated={handleRefreshSiteContent}
       />
     </div>
   );

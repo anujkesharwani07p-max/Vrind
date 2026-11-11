@@ -1,6 +1,7 @@
 import { 
   collection, 
   getDocs, 
+  getDoc,
   doc, 
   setDoc, 
   updateDoc, 
@@ -9,17 +10,20 @@ import {
   where 
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Room, Booking, Enquiry, Review } from '../types';
-import { INITIAL_ROOMS, INITIAL_REVIEWS } from '../data/initialData';
+import { Room, Booking, Enquiry, Review, SiteContent } from '../types';
+import { INITIAL_ROOMS, INITIAL_REVIEWS, INITIAL_SITE_CONTENT } from '../data/initialData';
 
 const ROOMS_COLLECTION = 'rooms';
 const BOOKINGS_COLLECTION = 'bookings';
 const ROOM_SCHEDULE_COLLECTION = 'room_schedule';
 const ENQUIRIES_COLLECTION = 'enquiries';
 const REVIEWS_COLLECTION = 'reviews';
+const SITE_SETTINGS_COLLECTION = 'site_settings';
+const SITE_CONTENT_DOC_ID = 'content';
 
 const LOCAL_STORAGE_ROOMS_KEY = 'vrind_homestay_rooms';
 const LOCAL_STORAGE_BOOKINGS_KEY = 'vrind_homestay_bookings';
+const LOCAL_STORAGE_SITE_CONTENT_KEY = 'vrind_homestay_site_content';
 
 /**
  * Read cached rooms from localStorage
@@ -605,3 +609,112 @@ export async function submitReviewToDb(review: Omit<Review, 'id' | 'createdAt'>)
     throw error;
   }
 }
+
+/**
+ * Read cached site content from localStorage
+ */
+export function getCachedSiteContent(): SiteContent {
+  try {
+    const cached = localStorage.getItem(LOCAL_STORAGE_SITE_CONTENT_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && (parsed.homestayDetails || parsed.hero)) {
+        return {
+          ...INITIAL_SITE_CONTENT,
+          ...parsed,
+          homestayDetails: { ...INITIAL_SITE_CONTENT.homestayDetails, ...(parsed.homestayDetails || {}) },
+          hero: { ...INITIAL_SITE_CONTENT.hero, ...(parsed.hero || {}) },
+          about: { ...INITIAL_SITE_CONTENT.about, ...(parsed.about || {}) },
+          experiences: parsed.experiences?.length ? parsed.experiences : INITIAL_SITE_CONTENT.experiences,
+          gallery: parsed.gallery?.length ? parsed.gallery : INITIAL_SITE_CONTENT.gallery,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read cached site content:', e);
+  }
+  return INITIAL_SITE_CONTENT;
+}
+
+/**
+ * Save cached site content to localStorage
+ */
+export function saveCachedSiteContent(content: SiteContent): void {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_SITE_CONTENT_KEY, JSON.stringify(content));
+  } catch (e) {
+    console.warn('Could not save cached site content:', e);
+  }
+}
+
+/**
+ * Fetch full site text & photo content from Firestore doc site_settings/content.
+ * Falls back to localStorage cache and initial default data.
+ */
+export async function getSiteContentFromDb(): Promise<SiteContent> {
+  const path = `${SITE_SETTINGS_COLLECTION}/${SITE_CONTENT_DOC_ID}`;
+  try {
+    const docRef = doc(db, SITE_SETTINGS_COLLECTION, SITE_CONTENT_DOC_ID);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data() as Partial<SiteContent>;
+      const merged: SiteContent = {
+        ...INITIAL_SITE_CONTENT,
+        ...data,
+        homestayDetails: { ...INITIAL_SITE_CONTENT.homestayDetails, ...(data.homestayDetails || {}) },
+        hero: { ...INITIAL_SITE_CONTENT.hero, ...(data.hero || {}) },
+        about: { ...INITIAL_SITE_CONTENT.about, ...(data.about || {}) },
+        experiences: data.experiences?.length ? data.experiences : INITIAL_SITE_CONTENT.experiences,
+        gallery: data.gallery?.length ? data.gallery : INITIAL_SITE_CONTENT.gallery,
+      };
+      saveCachedSiteContent(merged);
+      return merged;
+    }
+    return getCachedSiteContent();
+  } catch (error) {
+    console.warn('Could not fetch site content from db, using cache:', error);
+    return getCachedSiteContent();
+  }
+}
+
+/**
+ * Update full or partial site content (Homestay details, Hero, About, Experiences, Gallery).
+ * Persists immediately to localStorage and updates Firestore.
+ */
+export async function updateSiteContentInDb(updates: Partial<SiteContent>): Promise<SiteContent> {
+  const path = `${SITE_SETTINGS_COLLECTION}/${SITE_CONTENT_DOC_ID}`;
+  const current = getCachedSiteContent();
+  const merged: SiteContent = {
+    ...current,
+    ...updates,
+    homestayDetails: {
+      ...current.homestayDetails,
+      ...(updates.homestayDetails || {})
+    },
+    hero: {
+      ...current.hero,
+      ...(updates.hero || {})
+    },
+    about: {
+      ...current.about,
+      ...(updates.about || {})
+    },
+    experiences: updates.experiences ?? current.experiences,
+    gallery: updates.gallery ?? current.gallery,
+    updatedAt: new Date().toISOString()
+  };
+
+  // Always update local cache immediately for zero latency
+  saveCachedSiteContent(merged);
+
+  try {
+    const docRef = doc(db, SITE_SETTINGS_COLLECTION, SITE_CONTENT_DOC_ID);
+    await setDoc(docRef, { ...merged, id: SITE_CONTENT_DOC_ID }, { merge: true });
+    return merged;
+  } catch (error) {
+    console.warn('Failed to save site settings to Firestore, saved to local cache:', error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+    return merged;
+  }
+}
+

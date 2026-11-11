@@ -14,9 +14,15 @@ import {
   Sparkles
 } from 'lucide-react';
 import { HOMESTAY_DETAILS } from '../data/initialData';
+import { HomestayDetails } from '../types';
 import { submitEnquiryToDb } from '../services/dbService';
 
-export const Contact: React.FC = () => {
+interface ContactProps {
+  details?: HomestayDetails;
+}
+
+export const Contact: React.FC<ContactProps> = ({ details = HOMESTAY_DETAILS }) => {
+  const info = details || HOMESTAY_DETAILS;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -97,10 +103,10 @@ export const Contact: React.FC = () => {
                   <div>
                     <span className="text-[#a89d89] text-[11px] block">Direct Reservations & Front Desk</span>
                     <a
-                      href={`tel:${HOMESTAY_DETAILS.phone}`}
+                      href={`tel:${info.phone}`}
                       className="font-semibold text-[#f4efe6] hover:text-[#d4af37] transition-colors"
                     >
-                      {HOMESTAY_DETAILS.phoneFormatted}
+                      {info.phoneFormatted || info.phone}
                     </a>
                   </div>
                 </div>
@@ -113,12 +119,12 @@ export const Contact: React.FC = () => {
                   <div>
                     <span className="text-[#a89d89] text-[11px] block">Instant WhatsApp Chat</span>
                     <a
-                      href={`https://wa.me/${HOMESTAY_DETAILS.whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20have%20an%20enquiry%20regarding%20a%20booking.`}
+                      href={`https://wa.me/${info.whatsapp}?text=Hi%20Vrind%20Homestay%2C%20I%20have%20an%20enquiry%20regarding%20a%20booking.`}
                       target="_blank"
                       rel="noreferrer"
                       className="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
                     >
-                      Click to Chat ({HOMESTAY_DETAILS.phoneFormatted})
+                      Click to Chat ({info.phoneFormatted || info.phone})
                     </a>
                   </div>
                 </div>
@@ -131,10 +137,10 @@ export const Contact: React.FC = () => {
                   <div>
                     <span className="text-[#a89d89] text-[11px] block">Official Email</span>
                     <a
-                      href={`mailto:${HOMESTAY_DETAILS.email}`}
+                      href={`mailto:${info.email}`}
                       className="font-semibold text-[#f4efe6] hover:text-[#d4af37] transition-colors"
                     >
-                      {HOMESTAY_DETAILS.email}
+                      {info.email}
                     </a>
                   </div>
                 </div>
@@ -147,7 +153,7 @@ export const Contact: React.FC = () => {
                   <div>
                     <span className="text-[#a89d89] text-[11px] block">Homestay Address</span>
                     <p className="font-medium text-[#f4efe6] leading-relaxed">
-                      {HOMESTAY_DETAILS.address}
+                      {info.address}
                     </p>
                   </div>
                 </div>
@@ -160,7 +166,7 @@ export const Contact: React.FC = () => {
                   <div>
                     <span className="text-[#a89d89] text-[11px] block">Standard Hospitality Hours</span>
                     <p className="text-xs text-[#dfd4c0]">
-                      Check-In: <strong>{HOMESTAY_DETAILS.checkInTime}</strong> • Check-Out: <strong>{HOMESTAY_DETAILS.checkOutTime}</strong>
+                      Check-In: <strong>{info.checkInTime}</strong> • Check-Out: <strong>{info.checkOutTime}</strong>
                     </p>
                   </div>
                 </div>
@@ -171,27 +177,27 @@ export const Contact: React.FC = () => {
             <div className="bg-[#0c1a14] border border-[#1e3b2e] rounded-3xl p-6 shadow-xl space-y-3 text-xs">
               <h4 className="font-cinzel text-base font-bold text-[#fcfaf6] flex items-center gap-2 mb-2">
                 <Navigation className="w-4 h-4 text-[#d4af37]" />
-                <span>How to Reach Vrind Homestay</span>
+                <span>How to Reach {info.name || 'Vrind Homestay'}</span>
               </h4>
 
               <div className="flex items-start gap-2.5">
                 <Plane className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-[#f4efe6]">By Air:</strong> {HOMESTAY_DETAILS.nearestAirport}. Taxis and homestay private transfers available on request.
+                  <strong className="text-[#f4efe6]">By Air:</strong> {info.nearestAirport}. Taxis and homestay private transfers available on request.
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <Car className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-[#f4efe6]">By Road:</strong> {HOMESTAY_DETAILS.drivingDistance}. Paved tarmac road leads straight to property with private guest parking.
+                  <strong className="text-[#f4efe6]">By Road:</strong> {info.drivingDistance}. Paved tarmac road leads straight to property with private guest parking.
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <Train className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-[#f4efe6]">By Train:</strong> {HOMESTAY_DETAILS.nearestRailway}. Express Volvo buses run daily to Manali.
+                  <strong className="text-[#f4efe6]">By Train:</strong> {info.nearestRailway}. Express Volvo buses run daily to Manali.
                 </div>
               </div>
             </div>

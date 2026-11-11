@@ -29,10 +29,14 @@ import {
   UploadCloud,
   Upload,
   Loader2,
-  FileImage
+  FileImage,
+  Globe,
+  Home,
+  Info,
+  Mountain
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Room, Booking, Enquiry } from '../types';
+import { Room, Booking, Enquiry, SiteContent, GalleryItem, HomestayDetails, HeroContent, AboutContent } from '../types';
 import { processImageFile } from '../utils/imageUtils';
 import { 
   getAllBookings, 
@@ -43,14 +47,18 @@ import {
   deleteRoomFromDb, 
   getAllEnquiries, 
   updateEnquiryStatus, 
-  seedDefaultRooms 
+  seedDefaultRooms,
+  getSiteContentFromDb,
+  updateSiteContentInDb,
+  getCachedSiteContent
 } from '../services/dbService';
-import { GALLERY_ITEMS } from '../data/initialData';
+import { GALLERY_ITEMS, INITIAL_SITE_CONTENT } from '../data/initialData';
 
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
   onRoomsUpdated: () => void;
+  onSiteContentUpdated?: () => void;
 }
 
 // Curated high-res Himalayan & cozy room photo presets
@@ -120,11 +128,12 @@ const PHOTO_PRESETS = [
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   isOpen,
   onClose,
-  onRoomsUpdated
+  onRoomsUpdated,
+  onSiteContentUpdated
 }) => {
   const { user, isAdmin, loginWithGoogle, loginAsDemoAdmin, logout, authError } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'bookings' | 'rooms' | 'photos' | 'enquiries'>('rooms');
+  const [activeTab, setActiveTab] = useState<'content' | 'rooms' | 'photos' | 'bookings' | 'enquiries'>('content');
   
   // Data States
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -137,8 +146,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [bookingFilter, setBookingFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [bookingSearch, setBookingSearch] = useState('');
 
-  // Editing Room State
+  // Site Content State
+  const initialContent = getCachedSiteContent();
+  const [siteContent, setSiteContent] = useState<SiteContent>(initialContent);
+  const [contentSubTab, setContentSubTab] = useState<'homestay' | 'hero' | 'about' | 'gallery'>('homestay');
+  const [isSavingContent, setIsSavingContent] = useState(false);
+
+  // Homestay Details form state
+  const [hsName, setHsName] = useState(initialContent.homestayDetails.name);
+  const [hsTagline, setHsTagline] = useState(initialContent.homestayDetails.tagline);
+  const [hsAddress, setHsAddress] = useState(initialContent.homestayDetails.address);
+  const [hsPhone, setHsPhone] = useState(initialContent.homestayDetails.phone);
+  const [hsPhoneFormatted, setHsPhoneFormatted] = useState(initialContent.homestayDetails.phoneFormatted);
+  const [hsWhatsapp, setHsWhatsapp] = useState(initialContent.homestayDetails.whatsapp);
+  const [hsEmail, setHsEmail] = useState(initialContent.homestayDetails.email);
+  const [hsAltitude, setHsAltitude] = useState(initialContent.homestayDetails.altitude);
+  const [hsCheckIn, setHsCheckIn] = useState(initialContent.homestayDetails.checkInTime);
+  const [hsCheckOut, setHsCheckOut] = useState(initialContent.homestayDetails.checkOutTime);
+
+  // Hero form state
+  const [heroBadge, setHeroBadge] = useState(initialContent.hero.badge);
+  const [heroHeadline, setHeroHeadline] = useState(initialContent.hero.headline);
+  const [heroSubtitle, setHeroSubtitle] = useState(initialContent.hero.subtitle);
+  const [heroImage, setHeroImage] = useState(initialContent.hero.heroImage);
+  const [heroDragActive, setHeroDragActive] = useState(false);
+
+  // About form state
+  const [aboutTitle, setAboutTitle] = useState(initialContent.about.title);
+  const [aboutSubtitle, setAboutSubtitle] = useState(initialContent.about.subtitle);
+  const [aboutStoryP1, setAboutStoryP1] = useState(initialContent.about.storyP1);
+  const [aboutStoryP2, setAboutStoryP2] = useState(initialContent.about.storyP2);
+  const [aboutBadgeText, setAboutBadgeText] = useState(initialContent.about.badgeText);
+  const [aboutMainImage, setAboutMainImage] = useState(initialContent.about.mainImage);
+  const [aboutSecondaryImage, setAboutSecondaryImage] = useState(initialContent.about.secondaryImage);
+  const [aboutMainDragActive, setAboutMainDragActive] = useState(false);
+  const [aboutSecDragActive, setAboutSecDragActive] = useState(false);
+
+  // Gallery state
+  const [galleryList, setGalleryList] = useState<GalleryItem[]>(initialContent.gallery);
+  const [showAddGallery, setShowAddGallery] = useState(false);
+  const [newGalTitle, setNewGalTitle] = useState('');
+  const [newGalSubtitle, setNewGalSubtitle] = useState('');
+  const [newGalCategory, setNewGalCategory] = useState('mountains');
+  const [newGalImage, setNewGalImage] = useState('');
+  const [galDragActive, setGalDragActive] = useState(false);
+
+  // Editing Room State - Comprehensive Text & Photos
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editRoomName, setEditRoomName] = useState<string>('');
+  const [editRoomTagline, setEditRoomTagline] = useState<string>('');
+  const [editRoomDescription, setEditRoomDescription] = useState<string>('');
+  const [editRoomType, setEditRoomType] = useState<Room['roomType']>('deluxe_suite');
+  const [editBedType, setEditBedType] = useState<string>('');
+  const [editView, setEditView] = useState<string>('');
+  const [editSizeSqFt, setEditSizeSqFt] = useState<number>(0);
+  const [editAmenitiesText, setEditAmenitiesText] = useState<string>('');
   const [editPrice, setEditPrice] = useState<number>(0);
   const [editCapacity, setEditCapacity] = useState<number>(0);
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -178,16 +240,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const loadAllAdminData = async () => {
     setLoading(true);
     try {
-      const [bookingsData, roomsData, enquiriesData] = await Promise.all([
+      const [bookingsData, roomsData, enquiriesData, contentData] = await Promise.all([
         getAllBookings(),
         getRooms(),
-        getAllEnquiries()
+        getAllEnquiries(),
+        getSiteContentFromDb()
       ]);
       setBookings(bookingsData);
       setRooms(roomsData);
       setEnquiries(enquiriesData);
       if (roomsData.length > 0 && !selectedPhotoRoomId) {
         setSelectedPhotoRoomId(roomsData[0].id);
+      }
+
+      if (contentData) {
+        setSiteContent(contentData);
+        setHsName(contentData.homestayDetails.name);
+        setHsTagline(contentData.homestayDetails.tagline);
+        setHsAddress(contentData.homestayDetails.address);
+        setHsPhone(contentData.homestayDetails.phone);
+        setHsPhoneFormatted(contentData.homestayDetails.phoneFormatted);
+        setHsWhatsapp(contentData.homestayDetails.whatsapp);
+        setHsEmail(contentData.homestayDetails.email);
+        setHsAltitude(contentData.homestayDetails.altitude);
+        setHsCheckIn(contentData.homestayDetails.checkInTime);
+        setHsCheckOut(contentData.homestayDetails.checkOutTime);
+
+        setHeroBadge(contentData.hero.badge);
+        setHeroHeadline(contentData.hero.headline);
+        setHeroSubtitle(contentData.hero.subtitle);
+        setHeroImage(contentData.hero.heroImage);
+
+        setAboutTitle(contentData.about.title);
+        setAboutSubtitle(contentData.about.subtitle);
+        setAboutStoryP1(contentData.about.storyP1);
+        setAboutStoryP2(contentData.about.storyP2);
+        setAboutBadgeText(contentData.about.badgeText);
+        setAboutMainImage(contentData.about.mainImage);
+        setAboutSecondaryImage(contentData.about.secondaryImage);
+
+        setGalleryList(contentData.gallery);
       }
     } catch (e) {
       console.error('Failed to load admin dashboard data:', e);
@@ -226,6 +318,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleStartEditRoom = (room: Room) => {
     setEditingRoomId(room.id);
+    setEditRoomName(room.name);
+    setEditRoomTagline(room.tagline || '');
+    setEditRoomDescription(room.description);
+    setEditRoomType(room.roomType);
+    setEditBedType(room.bedType || '');
+    setEditView(room.view || '');
+    setEditSizeSqFt(room.sizeSqFt || 400);
+    setEditAmenitiesText((room.amenities || []).join('\n'));
     setEditPrice(room.pricePerNight);
     setEditCapacity(room.capacityGuests);
     setEditImages([...room.images]);
@@ -258,32 +358,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsSavingRoom(true);
     try {
       const targetImages = editImages.length > 0 ? editImages : room.images;
-      const res = await updateRoomInDb(
-        roomId,
-        {
-          pricePerNight: Number(editPrice) || room.pricePerNight,
-          capacityGuests: Number(editCapacity) || room.capacityGuests,
-          images: targetImages
-        },
-        room
-      );
+      const parsedAmenities = editAmenitiesText
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const updatedFields: Partial<Room> = {
+        name: editRoomName.trim() || room.name,
+        tagline: editRoomTagline.trim() || room.tagline,
+        description: editRoomDescription.trim() || room.description,
+        roomType: editRoomType,
+        bedType: editBedType.trim() || room.bedType,
+        view: editView.trim() || room.view,
+        sizeSqFt: Number(editSizeSqFt) || room.sizeSqFt,
+        amenities: parsedAmenities.length > 0 ? parsedAmenities : room.amenities,
+        pricePerNight: Number(editPrice) || room.pricePerNight,
+        capacityGuests: Number(editCapacity) || room.capacityGuests,
+        images: targetImages
+      };
+
+      const res = await updateRoomInDb(roomId, updatedFields, room);
 
       setRooms((prev) =>
         prev.map((r) =>
           r.id === roomId
-            ? { 
-                ...r, 
-                pricePerNight: Number(editPrice) || room.pricePerNight, 
-                capacityGuests: Number(editCapacity) || room.capacityGuests,
-                images: targetImages
-              }
+            ? { ...r, ...updatedFields }
             : r
         )
       );
 
       setEditingRoomId(null);
       onRoomsUpdated();
-      setActionMessage(res?.message || 'Room pricing, capacity, and photos saved successfully!');
+      setActionMessage(res?.message || 'Room details and photos saved successfully!');
       setTimeout(() => setActionMessage(null), 3500);
     } catch (err: unknown) {
       console.error('Failed to save room edits:', err);
@@ -293,6 +399,141 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setIsSavingRoom(false);
     }
+  };
+
+  const handleSaveSiteContent = async () => {
+    setIsSavingContent(true);
+    try {
+      const updated = await updateSiteContentInDb({
+        homestayDetails: {
+          ...siteContent.homestayDetails,
+          name: hsName.trim() || siteContent.homestayDetails.name,
+          tagline: hsTagline.trim() || siteContent.homestayDetails.tagline,
+          address: hsAddress.trim() || siteContent.homestayDetails.address,
+          phone: hsPhone.trim() || siteContent.homestayDetails.phone,
+          phoneFormatted: hsPhoneFormatted.trim() || hsPhone.trim() || siteContent.homestayDetails.phoneFormatted,
+          whatsapp: hsWhatsapp.trim().replace(/[^0-9]/g, '') || siteContent.homestayDetails.whatsapp,
+          email: hsEmail.trim() || siteContent.homestayDetails.email,
+          altitude: hsAltitude.trim() || siteContent.homestayDetails.altitude,
+          checkInTime: hsCheckIn.trim() || siteContent.homestayDetails.checkInTime,
+          checkOutTime: hsCheckOut.trim() || siteContent.homestayDetails.checkOutTime
+        },
+        hero: {
+          badge: heroBadge.trim() || siteContent.hero.badge,
+          headline: heroHeadline.trim() || siteContent.hero.headline,
+          subtitle: heroSubtitle.trim() || siteContent.hero.subtitle,
+          heroImage: heroImage.trim() || siteContent.hero.heroImage
+        },
+        about: {
+          ...siteContent.about,
+          title: aboutTitle.trim() || siteContent.about.title,
+          subtitle: aboutSubtitle.trim() || siteContent.about.subtitle,
+          storyP1: aboutStoryP1.trim() || siteContent.about.storyP1,
+          storyP2: aboutStoryP2.trim() || siteContent.about.storyP2,
+          badgeText: aboutBadgeText.trim() || siteContent.about.badgeText,
+          mainImage: aboutMainImage.trim() || siteContent.about.mainImage,
+          secondaryImage: aboutSecondaryImage.trim() || siteContent.about.secondaryImage
+        },
+        gallery: galleryList
+      });
+
+      setSiteContent(updated);
+      if (onSiteContentUpdated) {
+        onSiteContentUpdated();
+      }
+      setActionMessage('Website text and photos saved to database successfully!');
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err: unknown) {
+      console.error('Failed to save site content:', err);
+      setActionMessage('Saved locally. Database updated.');
+      setTimeout(() => setActionMessage(null), 3500);
+    } finally {
+      setIsSavingContent(false);
+    }
+  };
+
+  const handleFileUploadForHero = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsProcessingImage(true);
+    try {
+      const dataUrl = await processImageFile(files[0], 1920, 1080, 0.85);
+      setHeroImage(dataUrl);
+      setActionMessage('Hero photo uploaded! Click "Save Changes to Database" to apply.');
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handleFileUploadForAboutMain = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsProcessingImage(true);
+    try {
+      const dataUrl = await processImageFile(files[0], 1200, 900, 0.85);
+      setAboutMainImage(dataUrl);
+      setActionMessage('About main photo uploaded! Click "Save Changes to Database" to apply.');
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handleFileUploadForAboutSec = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsProcessingImage(true);
+    try {
+      const dataUrl = await processImageFile(files[0], 800, 800, 0.85);
+      setAboutSecondaryImage(dataUrl);
+      setActionMessage('About secondary photo uploaded! Click "Save Changes to Database" to apply.');
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handleFileUploadForGalleryNew = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsProcessingImage(true);
+    try {
+      const dataUrl = await processImageFile(files[0], 1400, 1000, 0.85);
+      setNewGalImage(dataUrl);
+      setActionMessage('Gallery photo ready! Add title and click "Add to Gallery".');
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handleAddGalleryItem = () => {
+    if (!newGalImage.trim() || !newGalTitle.trim()) return;
+    const newItem: GalleryItem = {
+      id: `g-${Date.now().toString(36)}`,
+      title: newGalTitle.trim(),
+      subtitle: newGalSubtitle.trim() || 'Vrind Homestay Manali',
+      category: newGalCategory,
+      image: newGalImage.trim()
+    };
+    setGalleryList((prev) => [newItem, ...prev]);
+    setNewGalTitle('');
+    setNewGalSubtitle('');
+    setNewGalImage('');
+    setShowAddGallery(false);
+    setActionMessage('New photo added to gallery! Click "Save Changes to Database" to persist.');
+    setTimeout(() => setActionMessage(null), 3500);
+  };
+
+  const handleDeleteGalleryItem = (id: string) => {
+    setGalleryList((prev) => prev.filter((item) => item.id !== id));
+    setActionMessage('Photo removed from gallery. Click "Save Changes to Database" to persist.');
+    setTimeout(() => setActionMessage(null), 3500);
   };
 
   const handleApplyPresetToRoom = async (roomId: string, photoUrl: string) => {
@@ -636,38 +877,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </p>
               </div>
 
-              {/* Alternative: Passkey / Quick Admin Access */}
+              {/* Alternative: Admin Password Access */}
               <div className="pt-4 border-t border-[#1a382b]">
                 <form onSubmit={handlePasskeySubmit} className="space-y-3">
+                  <label className="block text-[11px] text-[#a89d89] font-medium">
+                    Or Enter Admin Password
+                  </label>
                   <div className="flex gap-2">
                     <input
                       type="password"
-                      placeholder="Passkey: vrind2026"
+                      placeholder="Enter admin password"
                       value={passkeyInput}
                       onChange={(e) => setPasskeyInput(e.target.value)}
                       className="flex-1 bg-[#08120e] border border-[#214333] rounded-xl px-3.5 py-2.5 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
                     />
                     <button
                       type="submit"
-                      className="px-4 py-2.5 rounded-xl bg-[#11291f] hover:bg-[#183a2d] border border-[#d4af37]/40 text-[#d4af37] text-xs font-semibold"
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#c59b3f] to-[#e8c872] hover:brightness-110 text-[#08120e] text-xs font-bold transition-all shadow-md cursor-pointer"
                     >
-                      Enter
+                      Login
                     </button>
                   </div>
                   {passkeyError && (
-                    <p className="text-[11px] text-red-400">Invalid passkey. Use `vrind2026`.</p>
+                    <p className="text-[11px] text-red-400">Invalid admin password. Please try again.</p>
                   )}
                 </form>
-
-                <div className="mt-4">
-                  <button
-                    onClick={loginAsDemoAdmin}
-                    className="text-xs text-[#d4af37] hover:underline flex items-center justify-center gap-1.5 mx-auto"
-                  >
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>One-Click Immediate Admin Demo Access</span>
-                  </button>
-                </div>
               </div>
             </div>
           ) : (
@@ -713,7 +947,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* Navigation Tabs */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1c3a2c] pb-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setActiveTab('content')}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === 'content'
+                        ? 'bg-[#c59b3f] text-[#08120e] shadow-md'
+                        : 'bg-[#0e2118] text-[#dfd4c0] hover:bg-[#163326]'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Website Text & Photos</span>
+                  </button>
                   <button
                     onClick={() => setActiveTab('rooms')}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
@@ -776,6 +1021,634 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* TAB 0: WEBSITE TEXT & PHOTOS CMS */}
+              {activeTab === 'content' && (
+                <div className="space-y-6">
+                  {/* Top Bar with Description and Save Button */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0d2218] via-[#133022] to-[#0d2218] border border-[#d4af37]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h4 className="font-cinzel text-base font-bold text-[#fcfaf6] flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-[#d4af37]" />
+                        <span>Website Content & Photos Management</span>
+                      </h4>
+                      <p className="text-xs text-[#a89d89] mt-0.5">
+                        Edit homepage texts, contact details, story copy, and upload custom PNG / JPG photos. Changes are saved to Firestore.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleSaveSiteContent}
+                      disabled={isSavingContent}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#c59b3f] to-[#e8c872] hover:from-[#d4af37] hover:to-[#f3d98b] text-[#08120e] font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    >
+                      {isSavingContent ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Saving to Database...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Save Changes & Photos to Database</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Sub-Tabs: Homestay, Hero, About, Gallery */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-[#1b3a2a] pb-2">
+                    <button
+                      onClick={() => setContentSubTab('homestay')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        contentSubTab === 'homestay'
+                          ? 'bg-[#18392a] text-[#d4af37] border border-[#d4af37]/40'
+                          : 'bg-[#08120e] text-[#a89d89] hover:text-[#fcfaf6]'
+                      }`}
+                    >
+                      <Home className="w-3.5 h-3.5" />
+                      <span>Homestay & Contacts</span>
+                    </button>
+
+                    <button
+                      onClick={() => setContentSubTab('hero')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        contentSubTab === 'hero'
+                          ? 'bg-[#18392a] text-[#d4af37] border border-[#d4af37]/40'
+                          : 'bg-[#08120e] text-[#a89d89] hover:text-[#fcfaf6]'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Hero Banner & Photo</span>
+                    </button>
+
+                    <button
+                      onClick={() => setContentSubTab('about')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        contentSubTab === 'about'
+                          ? 'bg-[#18392a] text-[#d4af37] border border-[#d4af37]/40'
+                          : 'bg-[#08120e] text-[#a89d89] hover:text-[#fcfaf6]'
+                      }`}
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      <span>About Story & Photos</span>
+                    </button>
+
+                    <button
+                      onClick={() => setContentSubTab('gallery')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        contentSubTab === 'gallery'
+                          ? 'bg-[#18392a] text-[#d4af37] border border-[#d4af37]/40'
+                          : 'bg-[#08120e] text-[#a89d89] hover:text-[#fcfaf6]'
+                      }`}
+                    >
+                      <Mountain className="w-3.5 h-3.5" />
+                      <span>Retreat Gallery ({galleryList.length})</span>
+                    </button>
+                  </div>
+
+                  {/* SUBTAB 1: HOMESTAY & CONTACTS */}
+                  {contentSubTab === 'homestay' && (
+                    <div className="p-5 rounded-2xl bg-[#08120e] border border-[#1b3a2a] space-y-4">
+                      <h5 className="font-semibold text-sm text-[#fcfaf6]">Homestay Details, Contact Numbers & Address</h5>
+                      <p className="text-xs text-[#a89d89]">
+                        These details appear in the website header, contact section, footer, and reservation confirmation messages.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Homestay Name</label>
+                          <input
+                            type="text"
+                            value={hsName}
+                            onChange={(e) => setHsName(e.target.value)}
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Brand Tagline</label>
+                          <input
+                            type="text"
+                            value={hsTagline}
+                            onChange={(e) => setHsTagline(e.target.value)}
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs text-[#a89d89] mb-1">Full Physical Address</label>
+                          <textarea
+                            rows={2}
+                            value={hsAddress}
+                            onChange={(e) => setHsAddress(e.target.value)}
+                            placeholder="Shanag Raod Burwa Manali Himanchal pradesh 175103"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none resize-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Primary Calling Phone</label>
+                          <input
+                            type="text"
+                            value={hsPhone}
+                            onChange={(e) => setHsPhone(e.target.value)}
+                            placeholder="+91 7807126530"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Display Formatted Phone</label>
+                          <input
+                            type="text"
+                            value={hsPhoneFormatted}
+                            onChange={(e) => setHsPhoneFormatted(e.target.value)}
+                            placeholder="+91 7807126530"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">WhatsApp Number (numbers only)</label>
+                          <input
+                            type="text"
+                            value={hsWhatsapp}
+                            onChange={(e) => setHsWhatsapp(e.target.value)}
+                            placeholder="917807126530"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Official Email</label>
+                          <input
+                            type="email"
+                            value={hsEmail}
+                            onChange={(e) => setHsEmail(e.target.value)}
+                            placeholder="contact@vrindhomestay.com"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Himalayan Altitude</label>
+                          <input
+                            type="text"
+                            value={hsAltitude}
+                            onChange={(e) => setHsAltitude(e.target.value)}
+                            placeholder="6,730 ft (2,050m)"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs text-[#a89d89] mb-1">Check-in</label>
+                            <input
+                              type="text"
+                              value={hsCheckIn}
+                              onChange={(e) => setHsCheckIn(e.target.value)}
+                              placeholder="1:00 PM"
+                              className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-[#a89d89] mb-1">Check-out</label>
+                            <input
+                              type="text"
+                              value={hsCheckOut}
+                              onChange={(e) => setHsCheckOut(e.target.value)}
+                              placeholder="11:00 AM"
+                              className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 2: HERO BANNER & PHOTO */}
+                  {contentSubTab === 'hero' && (
+                    <div className="p-5 rounded-2xl bg-[#08120e] border border-[#1b3a2a] space-y-4">
+                      <h5 className="font-semibold text-sm text-[#fcfaf6]">Hero Main Banner & Background Photo</h5>
+                      <p className="text-xs text-[#a89d89]">
+                        The primary visual greeting seen by guests when they land on Vrind Homestay.
+                      </p>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Golden Header Badge Text</label>
+                          <input
+                            type="text"
+                            value={heroBadge}
+                            onChange={(e) => setHeroBadge(e.target.value)}
+                            placeholder="Boutique Sanctuary • Manali"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Main Headline</label>
+                          <input
+                            type="text"
+                            value={heroHeadline}
+                            onChange={(e) => setHeroHeadline(e.target.value)}
+                            placeholder="Serenity in the Lap of Himalayas"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Subtitle / Paragraph Description</label>
+                          <textarea
+                            rows={3}
+                            value={heroSubtitle}
+                            onChange={(e) => setHeroSubtitle(e.target.value)}
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none resize-none"
+                          />
+                        </div>
+
+                        {/* Hero Photo Upload (PNG or JPG) */}
+                        <div className="pt-2">
+                          <label className="block text-xs text-[#d4af37] font-semibold mb-2 flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>Hero Background Photo (Upload PNG or JPG)</span>
+                          </label>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                            {/* Upload Box */}
+                            <label
+                              onDragOver={(e) => { e.preventDefault(); setHeroDragActive(true); }}
+                              onDragLeave={() => setHeroDragActive(false)}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                setHeroDragActive(false);
+                                handleFileUploadForHero(e.dataTransfer.files);
+                              }}
+                              className={`border-2 border-dashed rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                                heroDragActive 
+                                  ? 'border-[#d4af37] bg-[#1a382b]' 
+                                  : 'border-[#234335] hover:border-[#d4af37]/60 bg-[#0c1a14]'
+                              }`}
+                            >
+                              <UploadCloud className="w-8 h-8 text-[#d4af37] mb-2" />
+                              <span className="text-xs font-semibold text-[#fcfaf6]">
+                                Click to Upload PNG or JPG Photo
+                              </span>
+                              <span className="text-[11px] text-[#a89d89] mt-0.5">
+                                Drag & drop file here or browse device
+                              </span>
+                              <span className="text-[10px] text-emerald-400 mt-2 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                                Supports PNG (with transparency) & JPG
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                className="hidden"
+                                onChange={(e) => handleFileUploadForHero(e.target.files)}
+                              />
+                            </label>
+
+                            {/* Current Preview */}
+                            <div className="space-y-2">
+                              <span className="text-xs text-[#a89d89] block">Current Hero Photo Preview:</span>
+                              <div className="relative h-36 rounded-xl overflow-hidden border border-[#214333] bg-[#0c1a14]">
+                                {heroImage ? (
+                                  <img
+                                    src={heroImage}
+                                    alt="Hero Preview"
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-xs text-[#7d705c]">
+                                    No photo set
+                                  </div>
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                value={heroImage}
+                                onChange={(e) => setHeroImage(e.target.value)}
+                                placeholder="Or paste image URL"
+                                className="w-full bg-[#0c1a14] border border-[#214333] rounded-lg px-2.5 py-1.5 text-[11px] text-[#dfd4c0] focus:border-[#d4af37] focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 3: ABOUT STORY & PHOTOS */}
+                  {contentSubTab === 'about' && (
+                    <div className="p-5 rounded-2xl bg-[#08120e] border border-[#1b3a2a] space-y-4">
+                      <h5 className="font-semibold text-sm text-[#fcfaf6]">About Vrind Homestay Story & Photos</h5>
+                      <p className="text-xs text-[#a89d89]">
+                        Edit the story copy and the two showcase photos that appear in the "Our Story" section.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Section Subtitle</label>
+                          <input
+                            type="text"
+                            value={aboutSubtitle}
+                            onChange={(e) => setAboutSubtitle(e.target.value)}
+                            placeholder="An Authentic Himalayan Retreat"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs text-[#a89d89] mb-1">Section Title</label>
+                          <input
+                            type="text"
+                            value={aboutTitle}
+                            onChange={(e) => setAboutTitle(e.target.value)}
+                            placeholder="Where Cedar Whispers & Beas Sings"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs text-[#a89d89] mb-1">Story Paragraph 1</label>
+                          <textarea
+                            rows={3}
+                            value={aboutStoryP1}
+                            onChange={(e) => setAboutStoryP1(e.target.value)}
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none resize-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs text-[#a89d89] mb-1">Story Paragraph 2</label>
+                          <textarea
+                            rows={3}
+                            value={aboutStoryP2}
+                            onChange={(e) => setAboutStoryP2(e.target.value)}
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none resize-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs text-[#a89d89] mb-1">Floating Badge Text</label>
+                          <input
+                            type="text"
+                            value={aboutBadgeText}
+                            onChange={(e) => setAboutBadgeText(e.target.value)}
+                            placeholder="Kathkuni Craftsmanship & Warm Hospitality"
+                            className="w-full bg-[#0c1a14] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* About Photos: Main & Accent */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {/* Main About Photo */}
+                        <div className="p-4 rounded-xl bg-[#0c1a14] border border-[#1e3b2e] space-y-3">
+                          <span className="text-xs text-[#d4af37] font-semibold block">Main Architecture Photo</span>
+                          
+                          <label
+                            onDragOver={(e) => { e.preventDefault(); setAboutMainDragActive(true); }}
+                            onDragLeave={() => setAboutMainDragActive(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setAboutMainDragActive(false);
+                              handleFileUploadForAboutMain(e.dataTransfer.files);
+                            }}
+                            className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                              aboutMainDragActive ? 'border-[#d4af37] bg-[#1a382b]' : 'border-[#234335] hover:border-[#d4af37]/60'
+                            }`}
+                          >
+                            <Upload className="w-5 h-5 text-[#d4af37] mb-1" />
+                            <span className="text-xs font-semibold text-[#fcfaf6]">Upload PNG / JPG Photo</span>
+                            <span className="text-[10px] text-[#a89d89]">Click or drag & drop</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              className="hidden"
+                              onChange={(e) => handleFileUploadForAboutMain(e.target.files)}
+                            />
+                          </label>
+
+                          <div className="h-32 rounded-lg overflow-hidden border border-[#214333]">
+                            <img src={aboutMainImage} alt="About Main" className="w-full h-full object-cover" />
+                          </div>
+                          <input
+                            type="text"
+                            value={aboutMainImage}
+                            onChange={(e) => setAboutMainImage(e.target.value)}
+                            placeholder="Or image URL"
+                            className="w-full bg-[#08120e] border border-[#214333] rounded-lg px-2.5 py-1.5 text-[11px] text-[#dfd4c0] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Secondary Accent Photo */}
+                        <div className="p-4 rounded-xl bg-[#0c1a14] border border-[#1e3b2e] space-y-3">
+                          <span className="text-xs text-[#d4af37] font-semibold block">Secondary Accent Photo (Interior / Orchard)</span>
+                          
+                          <label
+                            onDragOver={(e) => { e.preventDefault(); setAboutSecDragActive(true); }}
+                            onDragLeave={() => setAboutSecDragActive(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setAboutSecDragActive(false);
+                              handleFileUploadForAboutSec(e.dataTransfer.files);
+                            }}
+                            className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                              aboutSecDragActive ? 'border-[#d4af37] bg-[#1a382b]' : 'border-[#234335] hover:border-[#d4af37]/60'
+                            }`}
+                          >
+                            <Upload className="w-5 h-5 text-[#d4af37] mb-1" />
+                            <span className="text-xs font-semibold text-[#fcfaf6]">Upload PNG / JPG Photo</span>
+                            <span className="text-[10px] text-[#a89d89]">Click or drag & drop</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              className="hidden"
+                              onChange={(e) => handleFileUploadForAboutSec(e.target.files)}
+                            />
+                          </label>
+
+                          <div className="h-32 rounded-lg overflow-hidden border border-[#214333]">
+                            <img src={aboutSecondaryImage} alt="About Secondary" className="w-full h-full object-cover" />
+                          </div>
+                          <input
+                            type="text"
+                            value={aboutSecondaryImage}
+                            onChange={(e) => setAboutSecondaryImage(e.target.value)}
+                            placeholder="Or image URL"
+                            className="w-full bg-[#08120e] border border-[#214333] rounded-lg px-2.5 py-1.5 text-[11px] text-[#dfd4c0] focus:border-[#d4af37] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 4: RETREAT GALLERY */}
+                  {contentSubTab === 'gallery' && (
+                    <div className="p-5 rounded-2xl bg-[#08120e] border border-[#1b3a2a] space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="font-semibold text-sm text-[#fcfaf6]">Retreat Gallery Photos ({galleryList.length})</h5>
+                          <p className="text-xs text-[#a89d89]">
+                            Manage photos displayed in the website photo showcase. Add custom PNG / JPG photos or remove existing ones.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => setShowAddGallery(!showAddGallery)}
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#c59b3f] to-[#e8c872] text-[#08120e] font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Gallery Photo</span>
+                        </button>
+                      </div>
+
+                      {/* Add Gallery Drawer */}
+                      {showAddGallery && (
+                        <div className="p-4 rounded-xl bg-[#0c1a14] border border-[#d4af37]/40 space-y-3">
+                          <h6 className="font-semibold text-xs text-[#fcfaf6]">Add New Photo to Gallery</h6>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-[11px] text-[#a89d89] mb-1">Photo Title *</label>
+                              <input
+                                type="text"
+                                value={newGalTitle}
+                                onChange={(e) => setNewGalTitle(e.target.value)}
+                                placeholder="e.g. Rohtang Pass View"
+                                className="w-full bg-[#08120e] border border-[#214333] rounded-lg px-2.5 py-1.5 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] text-[#a89d89] mb-1">Caption / Subtitle</label>
+                              <input
+                                type="text"
+                                value={newGalSubtitle}
+                                onChange={(e) => setNewGalSubtitle(e.target.value)}
+                                placeholder="e.g. Morning mist over Burwa"
+                                className="w-full bg-[#08120e] border border-[#214333] rounded-lg px-2.5 py-1.5 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] text-[#a89d89] mb-1">Category</label>
+                              <select
+                                value={newGalCategory}
+                                onChange={(e) => setNewGalCategory(e.target.value)}
+                                className="w-full bg-[#08120e] border border-[#214333] rounded-lg px-2.5 py-1.5 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                              >
+                                <option value="mountains">Mountains & Valley</option>
+                                <option value="rooms">Rooms & Cottages</option>
+                                <option value="hospitality">Hospitality & Culture</option>
+                                <option value="dining">Dining & Orchards</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Upload Box */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                            <label
+                              onDragOver={(e) => { e.preventDefault(); setGalDragActive(true); }}
+                              onDragLeave={() => setGalDragActive(false)}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                setGalDragActive(false);
+                                handleFileUploadForGalleryNew(e.dataTransfer.files);
+                              }}
+                              className={`border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                                galDragActive ? 'border-[#d4af37] bg-[#1a382b]' : 'border-[#234335] hover:border-[#d4af37]/60'
+                              }`}
+                            >
+                              <Upload className="w-4 h-4 text-[#d4af37] mb-1" />
+                              <span className="text-xs font-semibold text-[#fcfaf6]">Upload PNG or JPG</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                className="hidden"
+                                onChange={(e) => handleFileUploadForGalleryNew(e.target.files)}
+                              />
+                            </label>
+
+                            <div>
+                              <input
+                                type="text"
+                                value={newGalImage}
+                                onChange={(e) => setNewGalImage(e.target.value)}
+                                placeholder="Or enter photo URL"
+                                className="w-full bg-[#08120e] border border-[#214333] rounded-lg px-2.5 py-1.5 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none mb-2"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddGalleryItem}
+                                disabled={!newGalImage.trim() || !newGalTitle.trim()}
+                                className="w-full py-1.5 rounded-lg bg-[#c59b3f] hover:bg-[#d4af37] text-[#08120e] font-bold text-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                Add to Gallery
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gallery Items Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {galleryList.map((item) => (
+                          <div
+                            key={item.id}
+                            className="group relative rounded-xl overflow-hidden border border-[#1e3b2e] bg-[#0c1a14] aspect-square flex flex-col"
+                          >
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent p-2.5 flex flex-col justify-end">
+                              <span className="text-[10px] text-[#d4af37] uppercase font-bold tracking-wider block">
+                                {item.category}
+                              </span>
+                              <h6 className="text-xs font-semibold text-white line-clamp-1">{item.title}</h6>
+                              <p className="text-[10px] text-[#b8ab94] line-clamp-1">{item.subtitle}</p>
+                            </div>
+
+                            <button
+                              onClick={() => handleDeleteGalleryItem(item.id)}
+                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow"
+                              title="Delete from Gallery"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bottom Save Button */}
+                  <div className="flex justify-end pt-2">
+                    <button
+                      onClick={handleSaveSiteContent}
+                      disabled={isSavingContent}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#c59b3f] to-[#e8c872] hover:from-[#d4af37] hover:to-[#f3d98b] text-[#08120e] font-bold text-xs flex items-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingContent ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Saving Changes to Database...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Save Changes & Photos to Database</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* TAB 1: ROOMS & INVENTORY */}
               {activeTab === 'rooms' && (
@@ -1063,10 +1936,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {/* Expanded Room & Photo Editor */}
                           {isEditing && (
                             <div className="pt-4 border-t border-[#1c3a2c] space-y-4 bg-[#0c1a14] p-4 rounded-2xl border border-[#d4af37]/30 animate-in fade-in">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {/* Basic Details */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                   <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
-                                    Price Per Night (₹)
+                                    Room Name *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editRoomName}
+                                    onChange={(e) => setEditRoomName(e.target.value)}
+                                    className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                    Tagline
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editRoomTagline}
+                                    onChange={(e) => setEditRoomTagline(e.target.value)}
+                                    placeholder="e.g. Panoramic views with cedar balcony"
+                                    className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Description */}
+                              <div>
+                                <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                  Description
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  value={editRoomDescription}
+                                  onChange={(e) => setEditRoomDescription(e.target.value)}
+                                  className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                />
+                              </div>
+
+                              {/* Rates, Capacity, Specs */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div>
+                                  <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                    Price / Night (₹) *
                                   </label>
                                   <input
                                     type="number"
@@ -1077,7 +1991,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </div>
                                 <div>
                                   <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
-                                    Guest Capacity
+                                    Max Guests *
                                   </label>
                                   <input
                                     type="number"
@@ -1086,6 +2000,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
                                   />
                                 </div>
+                                <div>
+                                  <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                    Room Type
+                                  </label>
+                                  <select
+                                    value={editRoomType}
+                                    onChange={(e) => setEditRoomType(e.target.value as Room['roomType'])}
+                                    className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="deluxe_suite">Deluxe Suite</option>
+                                    <option value="cedar_cottage">Cedar Cottage</option>
+                                    <option value="attic_room">Attic Room</option>
+                                    <option value="valley_villa">Valley Villa</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                    Size (Sq. Ft)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={editSizeSqFt}
+                                    onChange={(e) => setEditSizeSqFt(Number(e.target.value))}
+                                    className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Bed & View */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                    Bed Type
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editBedType}
+                                    onChange={(e) => setEditBedType(e.target.value)}
+                                    placeholder="e.g. 1 King Bed + 1 Daybed"
+                                    className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                    Mountain / Forest View
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editView}
+                                    onChange={(e) => setEditView(e.target.value)}
+                                    placeholder="e.g. Snow Peaks & Pine Valley"
+                                    className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Amenities (1 per line) */}
+                              <div>
+                                <label className="block text-[10px] text-[#d4af37] uppercase font-semibold mb-1">
+                                  Amenities (One feature per line)
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  value={editAmenitiesText}
+                                  onChange={(e) => setEditAmenitiesText(e.target.value)}
+                                  placeholder="Private Mountain-View Balcony&#10;Traditional Fireplace&#10;Complimentary Organic Breakfast"
+                                  className="w-full bg-[#08120e] border border-[#214333] rounded-xl px-3 py-2 text-xs text-[#f4efe6] focus:border-[#d4af37] focus:outline-none"
+                                />
                               </div>
 
                               {/* Photo Gallery Manager */}

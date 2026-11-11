@@ -8,10 +8,17 @@ import {
   Sparkles
 } from 'lucide-react';
 import { GALLERY_ITEMS } from '../data/initialData';
+import { GalleryItem } from '../types';
 
-export const Gallery: React.FC = () => {
+interface GalleryProps {
+  items?: GalleryItem[];
+}
+
+export const Gallery: React.FC<GalleryProps> = ({ items = GALLERY_ITEMS }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const galleryList = items && items.length > 0 ? items : GALLERY_ITEMS;
 
   const categories = [
     { label: 'All Photos', value: 'all' },
@@ -23,8 +30,8 @@ export const Gallery: React.FC = () => {
   ];
 
   const filteredItems = selectedCategory === 'all'
-    ? GALLERY_ITEMS
-    : GALLERY_ITEMS.filter((item) => item.category === selectedCategory);
+    ? galleryList
+    : galleryList.filter((item) => item.category === selectedCategory);
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);

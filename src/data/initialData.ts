@@ -1,4 +1,4 @@
-import { Room, Experience, Review } from '../types';
+import { Room, Experience, Review, GalleryItem, HeroContent, AboutContent, SiteContent, HomestayDetails } from '../types';
 
 export const INITIAL_ROOMS: Room[] = [
   {
@@ -263,7 +263,7 @@ export const INITIAL_REVIEWS: Review[] = [
   }
 ];
 
-export const HOMESTAY_DETAILS = {
+export const HOMESTAY_DETAILS: HomestayDetails = {
   name: 'Vrind Homestay – Himalayan Retreat',
   tagline: 'Experience Peace in the Heart of the Himalayas',
   address: 'Shanag Road, Burwa, Manali, Himachal Pradesh 175103',
@@ -278,4 +278,30 @@ export const HOMESTAY_DETAILS = {
   nearestAirport: 'Bhuntar / Kullu-Manali (KUU) – 48 km',
   nearestRailway: 'Chandigarh Junction (CDG) – 275 km / Amb Andaura – 180 km',
   drivingDistance: 'From New Delhi: 510 km (Scenic 10-12 hrs drive via NH21/Four-Lane Expressway)'
+};
+
+export const INITIAL_HERO: HeroContent = {
+  badge: '7,200 Ft Elevation • Manali Heritage Valley',
+  headline: 'Experience Peace in the Heart of the Himalayas',
+  subtitle: 'Tucked away in sacred deodar pine forests and fragrant apple orchards, Vrind Homestay offers handcrafted Kathkuni cedar suites, farm-fresh organic dining, and the undisturbed stillness of high mountain peaks.',
+  heroImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=85'
+};
+
+export const INITIAL_ABOUT: AboutContent = {
+  title: 'A Serene Sanctuary Built with Deodar Wood & Pure Warmth',
+  subtitle: 'About Vrind Homestay',
+  storyP1: 'Vrind Homestay was born from a simple devotion: to create a mindful refuge where travelers can disconnect from the frenetic pace of modern life and reconnect with the raw majesty of the Pir Panjal and Dhauladhar mountains.',
+  storyP2: 'Constructed by master local artisans using traditional Kathkuni architecture — an age-old Himalayan technique of interlocking river stones and aromatic deodar cedar logs without mortar — our homestay remains naturally warm during winter snowfalls and pleasantly breezy in Himalayan summers.',
+  mainImage: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1000&q=80',
+  secondaryImage: 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=600&q=80',
+  badgeText: 'Kathkuni Wood & River-Stone Craft',
+  elevationBadge: '7,200 ft (2,195 m)'
+};
+
+export const INITIAL_SITE_CONTENT: SiteContent = {
+  homestayDetails: HOMESTAY_DETAILS,
+  hero: INITIAL_HERO,
+  about: INITIAL_ABOUT,
+  experiences: EXPERIENCES,
+  gallery: GALLERY_ITEMS
 };
